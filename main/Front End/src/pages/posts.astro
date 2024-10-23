@@ -1,0 +1,156 @@
+
+---
+import { readCurrentUser } from "../services/currentUser";
+
+const currentUser = await readCurrentUser(Astro.request);
+
+// Redirect if the user is not authenticated
+if (!currentUser) {
+    return Astro.redirect("/login");
+}
+
+// Fetch posts from the API
+let posts = [];
+try {
+    const response = await fetch('http://localhost:3000/posts');
+    if (!response.ok) {
+        throw new Error('Failed to fetch posts');
+    }
+    posts = await response.json();
+} catch (error) {
+    console.error('Error fetching posts:', error);
+}
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Posts</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        .post {
+            border-bottom: 1px solid #ccc;
+            padding: 15px 0;
+        }
+
+        .post:last-child {
+            border-bottom: none;
+        }
+
+        .post h2 {
+            margin: 0;
+            color: #007bff;
+        }
+
+        .post p {
+            margin: 5px 0;
+            color: #666;
+        }
+
+        .post .tags {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        .post .id {
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .post .createdAt {
+            font-size: 0.8em;
+            color: #aaa;
+        }
+
+        .error-message {
+            color: red;
+            font-size: 0.9em;
+        }
+    </style>
+    <script type="module">
+        async function handleDelete(postId) {
+            const confirmDelete = confirm("Are you sure you want to delete this post?");
+            console.log(postId)
+            if (!confirmDelete) return;
+
+            try {
+                const response = await fetch(`http://localhost:3000/posts/${postId}`, {
+                    method: 'DELETE',
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to delete post');
+                }
+
+
+                window.location.reload(); 
+            } catch (error) {
+                console.error('Error deleting post:', error);
+                document.getElementById('error-message').innerText = 'Error: ' + error.message;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const deleteButtons = document.querySelectorAll('.delete-button');
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const postId = button.getAttribute('data-post-id');
+                    handleDelete(postId);
+                });
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>All Posts</h1>
+        <div id="error-message" class="error-message"></div> 
+        {posts.length > 0 ? (
+            posts.map(post => (
+            <div class="post" key={post._id}>
+    <h2>{post.title}</h2>
+    <p class="id">Post ID: {post._id}</p> <!-- Display the post ID -->
+    <p>{post.content}</p>
+    {post.tags.length > 0 && (
+        <div class="tags">Tags: {post.tags.join(', ')}</div>
+    )}
+    <p class="createdAt">Created At: {new Date(post.createdAt).toLocaleString()}</p> <!-- Display createdAt -->
+    
+    <button class="delete-button" data-post-id={post._id}>Delete</button> <!-- Use data attribute for post ID -->
+    
+    <!-- Update button redirects to dynamic update page -->
+    <a href={`/${post._id}`}>
+        <button class="update-button" data-post-id={post._id}>Update</button>
+    </a>
+</div>
+            ))
+        ) : (
+            <p>No posts available.</p>
+        )}
+    </div>
+</body>
+</html>

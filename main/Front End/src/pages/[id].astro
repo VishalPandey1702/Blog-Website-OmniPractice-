@@ -1,0 +1,198 @@
+
+
+
+---
+import { readCurrentUser } from "../services/currentUser";
+
+// Read the current user to check if they're authenticated
+const currentUser = await readCurrentUser(Astro.request);
+
+if (!currentUser) {
+  return Astro.redirect("/login");
+}
+
+// Get the post ID from the URL
+const { id } = Astro.params;
+console.log('Post ID fetched :', id);
+
+let post = null;
+
+// Fetch all posts and filter the one by the specific ID
+if (id) {
+  try {
+    const response = await fetch('http://localhost:3000/posts');
+    if (!response.ok) {
+      throw new Error('Failed to fetch posts');
+    }
+    const posts = await response.json();
+
+    post = posts.find(p => p._id === id);
+    if (!post) {
+      throw new Error('Post not found');
+    }
+  } catch (error) {
+    console.error('Error fetching or finding post:', error);
+  }
+}
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Post</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #007bff;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            color: #333;
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        textarea {
+            resize: vertical;
+            height: 150px;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-top: 20px;
+            background-color: #007bff;
+            border: none;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .error-message {
+            margin-top: 15px;
+            color: #d9534f;
+            font-size: 14px;
+            display: none;
+        }
+
+        .tags {
+            font-size: 12px;
+            color: #666;
+        }
+
+        p {
+            text-align: center;
+            font-size: 16px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Update Post</h1>
+        {post ? (
+            <>
+                <label for="title">Title:</label>
+                <input type="text" id="title" value={post.title} />
+
+                <label for="content">Content:</label>
+                <textarea id="content">{post.content}</textarea>
+
+                <label for="tags">Tags (comma-separated):</label>
+                <input type="text" id="tags" value={post.tags.join(', ')} />
+
+                <button id="updateBtn">Update Post</button>
+                <div class="error-message" id="error-message"></div>
+            </>
+        ) : (
+            <p>No post found with the provided ID.</p>
+        )}
+    </div>
+
+    <script type="module">
+        // Astro provides a way to inject the ID dynamically
+        const postId = "{}";  // Correct server-side ID injected here
+        console.log('Post ID final:', postId);
+        const id = window.location.pathname.split('/').pop();
+        console.log(id);  
+
+        document.getElementById('updateBtn').addEventListener('click', async () => {
+            const postData = {
+                title: document.getElementById('title').value,
+                content: document.getElementById('content').value,
+                tags: document.getElementById('tags').value ? document.getElementById('tags').value.split(',').map(tag => tag.trim()) : [],
+            };
+
+            try {
+                const response = await fetch(`http://localhost:3000/posts/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(postData),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update post');
+                }
+
+                const result = await response.json();
+                console.log('Post updated successfully', result);
+                alert('Post updated successfully!');
+
+                window.location.href = `/posts`;
+            } catch (error) {
+                console.error('Error updating post:', error);
+                document.getElementById('error-message').innerText = 'Error: ' + error.message;
+                document.getElementById('error-message').style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

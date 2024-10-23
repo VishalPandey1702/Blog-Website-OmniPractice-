@@ -1,0 +1,58 @@
+
+
+---
+import { RequestCookieStore } from "@worker-tools/request-cookie-store";
+
+if (Astro.request.method === "POST") {
+  const formData = new URLSearchParams(await Astro.request.text());
+  console.log("Signing in…", Object.fromEntries(formData));
+
+  const email = formData.get("login"); 
+  const password = formData.get("password"); 
+
+  try {
+
+    const response = await fetch('http://localhost:3000/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+
+    if (!response.ok) {
+      throw new Error('Login failed');  
+    }
+
+    const data = await response.json(); 
+
+    
+    if (data.success) {
+      const cookieStore = new RequestCookieStore(Astro.request);
+      
+
+      await cookieStore.set({
+        name: "insecure-username",
+        value: email ?? "", 
+        httpOnly: true,
+      });
+
+      const redirectResponse = Astro.redirect("/");
+      new Headers(cookieStore.headers).forEach((value, key) => {
+        redirectResponse.headers.append(key, value);
+      });
+      return redirectResponse;
+    } else {
+
+      console.log("Authentication failed for:", email);
+      return Astro.redirect("/login?error=invalid_credentials");
+    }
+  } catch (error) {
+    console.error("Error during login:", error);
+    return Astro.redirect("/login?error=login_error");
+  }
+} else {
+  return Astro.redirect("/login");
+}
+---
